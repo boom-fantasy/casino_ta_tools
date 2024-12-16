@@ -107,12 +107,10 @@ function createPhotoshopDocument(docWidth, docHeight) {
     var headers = parsedRows[0];
     alert("Found headers: " + headers.join(", "));
 
-    // Clean headers - using String() for conversion and replacing trim() with regex
+    // Clean headers
     for (var h = 0; h < headers.length; h++) {
         headers[h] = String(headers[h]).replace(/^\s+|\s+$/g, '');
     }
-
-    var smartObjects = []; // Array to store smart object layers
 
     // Find column indices
     var columnIndices = {
@@ -132,21 +130,44 @@ function createPhotoshopDocument(docWidth, docHeight) {
         switch(header) {
             case 'delivery asset name': 
                 columnIndices.name = i; 
-                alert("Found Delivery Asset Name at column " + i);  // Debug
+                alert("Found Delivery Asset Name at column " + i);
                 break;
             case 'width': 
                 columnIndices.width = i;
-                alert("Found Width at column " + i);  // Debug
+                alert("Found Width at column " + i);
                 break;
             case 'height': 
                 columnIndices.height = i;
-                alert("Found Height at column " + i);  // Debug
+                alert("Found Height at column " + i);
                 break;
             case 'x': columnIndices.x = i; break;
             case 'y': columnIndices.y = i; break;
             case 'folder': columnIndices.folder = i; break;
         }
     }
+
+    // Get unique folder names from CSV
+    var uniqueFolders = {};
+    for (var i = 1; i < parsedRows.length; i++) {
+        var values = parsedRows[i];
+        if (columnIndices.folder !== -1 && values[columnIndices.folder]) {
+            var folderName = String(values[columnIndices.folder]).toLowerCase().replace(/^\s+|\s+$/g, '');
+            if (folderName) {
+                uniqueFolders[folderName] = true;
+            }
+        } else {
+            uniqueFolders['default'] = true;
+        }
+    }
+
+    // Create folder structure
+    var folders = {};
+    for (var folder in uniqueFolders) {
+        folders[folder] = doc.layerSets.add();
+        folders[folder].name = folder.charAt(0).toUpperCase() + folder.slice(1);
+    }
+
+    var smartObjects = []; // Array to store smart object layers
 
     // Validate only required columns exist
     var missingColumns = [];
