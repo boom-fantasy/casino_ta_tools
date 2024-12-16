@@ -44,16 +44,51 @@ function createPhotoshopDocument(docWidth, docHeight) {
     // Create the main document
     var doc = app.documents.add(docWidth, docHeight);
 
+    // Read and parse the CSV file first to get folder names
+    csvFile.open('r');
+    var csvContent = csvFile.read();
+    csvFile.close();
+
+    var lines = csvContent.split('\n');
+    var headers = lines[0].split(',');
+    for (var h = 0; h < headers.length; h++) {
+        headers[h] = String(headers[h]).replace(/^\s+|\s+$/g, '');
+    }
+
+    // Find the folder column index
+    var folderColumnIndex = -1;
+    for (var i = 0; i < headers.length; i++) {
+        if (headers[i].toLowerCase() === 'folder') {
+            folderColumnIndex = i;
+            break;
+        }
+    }
+
+    if (folderColumnIndex === -1) {
+        alert("No 'Folder' column found in CSV");
+        return;
+    }
+
+    // Get unique folder names from CSV
+    var uniqueFolders = {};
+    for (var i = 1; i < lines.length; i++) {
+        if (!String(lines[i]).replace(/^\s+|\s+$/g, '')) continue;
+        
+        var values = lines[i].split(',');
+        if (values.length <= folderColumnIndex) continue;
+        
+        var folderName = String(values[folderColumnIndex]).toLowerCase().replace(/^\s+|\s+$/g, '');
+        if (folderName) {
+            uniqueFolders[folderName] = true;
+        }
+    }
+
     // Create folder structure
-    var folders = {
-        foreground: doc.layerSets.add(),
-        background: doc.layerSets.add(),
-        UI: doc.layerSets.add()
-    };
-    
-    folders.foreground.name = "foreground";
-    folders.background.name = "background";
-    folders.UI.name = "UI";
+    var folders = {};
+    for (var folder in uniqueFolders) {
+        folders[folder] = doc.layerSets.add();
+        folders[folder].name = folder.charAt(0).toUpperCase() + folder.slice(1); // Capitalize first letter
+    }
 
     // Read and parse the CSV file
     csvFile.open('r');
@@ -181,13 +216,9 @@ function createPhotoshopDocument(docWidth, docHeight) {
             }
             
             // Create subfolders in Links
-            var linksFolders = {
-                foreground: new Folder(linksFolder + "/foreground"),
-                background: new Folder(linksFolder + "/background"),
-                UI: new Folder(linksFolder + "/UI")
-            };
-            
-            for (var folder in linksFolders) {
+            var linksFolders = {};
+            for (var folder in uniqueFolders) {
+                linksFolders[folder] = new Folder(linksFolder + "/" + folders[folder].name);
                 if (!linksFolders[folder].exists) {
                     if (!linksFolders[folder].create()) {
                         alert("Warning: Failed to create folder: " + folder);
