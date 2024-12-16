@@ -88,7 +88,6 @@ function createPhotoshopDocument(docWidth, docHeight) {
         var xPosition = parseInt(values[3], 10) || 0;
         var yPosition = parseInt(values[4], 10) || 0;
         var folderName = String(values[5]).toLowerCase().replace(/^\s+|\s+$/g, '');
-        var tag = String(values[6]).replace(/^\s+|\s+$/g, '');
 
         // Validate dimensions
         if (width <= 0 || height <= 0) {
@@ -98,8 +97,8 @@ function createPhotoshopDocument(docWidth, docHeight) {
 
         try {
             // Create a new layer in the main document
-            var newLayer = doc.artLayers.add();
-            newLayer.name = layerName + " [" + tag + "]";
+            var shapeLayer = doc.artLayers.add();
+            shapeLayer.name = layerName + "_shape";
 
             // Set the layer bounds
             var bounds = [
@@ -118,10 +117,42 @@ function createPhotoshopDocument(docWidth, docHeight) {
             doc.selection.fill(fillColor);
             doc.selection.deselect();
 
-            // Convert the layer to a smart object
-            executeAction(stringIDToTypeID("newPlacedLayer"), undefined, DialogModes.NO);
+            // Add text layer
+            var textLayer = doc.artLayers.add();
+            textLayer.kind = LayerKind.TEXT;
+            textLayer.name = layerName + "_label";
             
-            // Move the layer to appropriate folder
+            // Set text properties
+            var textItem = textLayer.textItem;
+            textItem.kind = TextType.POINTTEXT;
+            textItem.font = "ArialMT";
+            textItem.contents = layerName;
+            textItem.size = Math.min(width, height) * 0.15;
+            textItem.justification = Justification.CENTER;
+            textItem.color.rgb.red = 50;
+            textItem.color.rgb.green = 50;
+            textItem.color.rgb.blue = 50;
+            
+            // Center the text in the object
+            var centerX = xPosition + (width / 2);
+            var centerY = yPosition + (height / 2);
+            textItem.position = [centerX, centerY];
+
+            // Create a temporary layer group
+            var tempGroup = doc.layerSets.add();
+            
+            // Move shape layer first, then text layer so text stays on top
+            shapeLayer.move(tempGroup, ElementPlacement.INSIDE);
+            textLayer.move(tempGroup, ElementPlacement.INSIDE);
+            
+            // Select the group
+            tempGroup.selected = true;
+
+            // Convert group to smart object
+            executeAction(stringIDToTypeID("newPlacedLayer"), undefined, DialogModes.NO);
+            doc.activeLayer.name = layerName;  // Rename the smart object
+            
+            // Move the smart object to appropriate folder
             if (folders[folderName]) {
                 doc.activeLayer.move(folders[folderName], ElementPlacement.INSIDE);
             } else {
