@@ -235,7 +235,7 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 tempText.name = layerName + "_label";
                 
                 var tempTextItem = tempText.textItem;
-                tempTextItem.kind = TextType.POINTTEXT;
+                tempTextItem.kind = TextType.PARAGRAPHTEXT;
                 tempTextItem.font = "ArialMT";
                 tempTextItem.contents = layerName;
                 tempTextItem.size = Math.min(width, height) * 0.3;
@@ -243,7 +243,14 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 tempTextItem.color.rgb.red = 50;
                 tempTextItem.color.rgb.green = 50;
                 tempTextItem.color.rgb.blue = 50;
-                tempTextItem.position = [width, height]; // Center of the 2x document
+                tempTextItem.width = width * 2;
+                tempTextItem.height = height * 2;
+                tempTextItem.position = [0, height - (tempTextItem.height / 2)];
+
+                // Auto-size text if it's too big
+                while (tempTextItem.height > height * 2 && tempTextItem.size > 12) {
+                    tempTextItem.size = tempTextItem.size * 0.9;
+                }
 
                 // Convert to smart object
                 tempDoc.activeLayer = tempText;
@@ -261,17 +268,34 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 var idPlc = charIDToTypeID("Plc ");
                 var desc = new ActionDescriptor();
                 desc.putPath(charIDToTypeID("null"), tempFile);
+                // Force exact dimensions
+                desc.putUnitDouble(charIDToTypeID("Wdth"), charIDToTypeID("#Pxl"), width);
+                desc.putUnitDouble(charIDToTypeID("Hght"), charIDToTypeID("#Pxl"), height);
+                desc.putBoolean(stringIDToTypeID("proportional"), true);  // Keep proportions
+                desc.putEnumerated(charIDToTypeID("Fit "), charIDToTypeID("Fit "), charIDToTypeID("Wdth")); // Fit to width
                 executeAction(idPlc, desc, DialogModes.NO);
+
+                // Verify and force correct size if needed
+                var layer = doc.activeLayer;
+                var bounds = layer.bounds;
+                var actualWidth = bounds[2].value - bounds[0].value;
+                var actualHeight = bounds[3].value - bounds[1].value;
                 
-                // Position the placed smart object at the original coordinates
-                // First, resize to correct dimensions
-                doc.activeLayer.resize(50, 50, AnchorPosition.MIDDLECENTER);
-                
-                // Then move to correct position
-                var bounds = doc.activeLayer.bounds;
-                var currentX = bounds[0].value;
-                var currentY = bounds[1].value;
-                doc.activeLayer.translate(xPosition - currentX, yPosition - currentY);
+                if (Math.abs(actualWidth - width) > 1 || Math.abs(actualHeight - height) > 1) {
+                    // Force resize to exact dimensions
+                    layer.resize(
+                        (width / actualWidth) * 100,
+                        (height / actualHeight) * 100,
+                        AnchorPosition.MIDDLECENTER
+                    );
+                }
+
+                // Position at exact coordinates
+                bounds = layer.bounds;
+                doc.activeLayer.translate(
+                    xPosition - bounds[0].value,
+                    yPosition - bounds[1].value
+                );
                 doc.activeLayer.name = layerName;
 
                 // Clean up temp file
@@ -308,7 +332,7 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 var centerY = yPosition + (height / 2);
                 
                 var textItem = textLayer.textItem;
-                textItem.kind = TextType.POINTTEXT;
+                textItem.kind = TextType.PARAGRAPHTEXT;
                 textItem.font = "ArialMT";
                 textItem.contents = layerName;
                 textItem.size = Math.min(width, height) * 0.15;
@@ -316,7 +340,16 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 textItem.color.rgb.red = 50;
                 textItem.color.rgb.green = 50;
                 textItem.color.rgb.blue = 50;
-                textItem.position = [centerX, centerY];
+                
+                // Create text box the same size as the shape
+                textItem.width = width;
+                textItem.height = height;
+                textItem.position = [xPosition, yPosition + (height - textItem.height) / 2];
+                
+                // Auto-size text if it's too big
+                while (textItem.height > height && textItem.size > 6) {
+                    textItem.size = textItem.size * 0.9;
+                }
 
                 // Create a temporary layer group
                 var tempGroup = doc.layerSets.add();
