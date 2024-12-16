@@ -1,0 +1,58 @@
+Delivery Asset Name,Image Count,Animation Count,Description,Skins,Bones,Animation Info:,font YAML,Comments,,Width,Height,Folder
+t_base_bg_01,1,1,,,,an_base_bg_01_idle,"The sky, on a bright sunny day. 
+
+This needs to take up the full vertical space of the game. This will solve for portrait view of bonus, when double matrix is activated - we will need two trees stacked on each other, which will have mostly sky behind it. The grass (t_base_bg_02) will be translated down in this scenario.
+
+","ANIMATIONS
+an_base_bg_01_idle: A looping animation",,250,300,UI
+t_base_bg_02,1,1,,,,an_base_bg_02_idle,"The background that is closer to the camera. The tree, character, and pots would sit on top of it.","ANIMATIONS
+an_base_bg_02_idle: A looping animation",,250,300,UI
+t_base_bg_prop_01,1,2,,,,"an_base_bg_prop_01_idle
+an_base_bg_prop_01_react","This asset should be discussed after the background static assets are finalized. 
+
+Description: lucky motif designed items/foliage/creature in the foreground that set dress.
+","
+ANIMATION
+an_base_bg_prop_01_idle:  a looping animation
+an_base_bg_prop_01_react: a non-looping animation that is played periodically",Need to add to choreography after asset has been made.,600,100,Foreground
+t_base_bg_prop_02,1,2,,,,"
+an_base_bg_prop_02_idle
+an_base_bg_prop_02_react","This asset should be discussed after the background static assets are finalized. 
+
+Description: Decorative elements in the foreground, midground, or background that animate.","
+ANIMATION
+an_base_bg_prop_02_idle:  a looping animation
+an_base_bg_prop_02_react: a non-looping animation that is played periodically",Need to add to choreography after asset has been made.,512,512,Foreground
+t_base_reel_bg_01,1,3,,15,,"an_base_reel_bg_01_intro
+an_base_reel_bg_01_react
+an_base_reel_bg_01_win
+","The tree that holds the MOR and jackpot coins/symbols.
+
+Must contain a bone for each of the symbols to attach to. ","
+BONES (# TBD)
+bn_mor_01: Bone to place MOR 1
+bn_mor_02: Bone to place MOR 2
+...
+bn_mor_15: Bone to place MOR 15
+
+ANIMATIONS
+an_base_reel_bg_01_react: Tree shake
+an_base_reel_bg_01_win: A tree shake that results in a player win
+an_base_reel_bg_01_intro: A tree grows from nothing into a full tree. This is only used during Lock & Respin to introduce a second matrix (if Double Matrix was activated)",,200,600,Foreground
+"t_base_background_01",-,-,,,,"an_base_reel_bg_02_react
+an_base_reel_bg_02_win
+
+an_base_reel_bg_03_react
+an_base_reel_bg_03_win
+
+...etc","Additional foliage layers can be made to account for the layering of MORs. They must all have react and win animations. The idle, react, and win animation must by completely in sync with the tree asset's animations (t_base_reel_bg_01)
+
+The static art can be delivered into folders in the t_base_reel_bg_01 linked psbs.
+","ANIMATIONS
+an_base_reel_bg_02_react: Tree shake
+an_base_reel_bg_02_win: A tree shake that results in a player wins
+
+an_base_reel_bg_03_react: Tree shake
+an_base_reel_bg_03_win: A tree shake that results in a player wins
+
+...etc",Need to add to choreography after asset has been made.,1000,1000,background
