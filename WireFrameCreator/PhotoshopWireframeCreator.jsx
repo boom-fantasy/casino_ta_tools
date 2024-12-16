@@ -18,6 +18,10 @@ function promptForDocumentSize() {
     var heightInput = heightGroup.add("edittext", undefined, "1080");
     heightInput.characters = 6;
     
+    // Add 2x checkbox
+    var scaleGroup = dlg.add("group");
+    var scale2x = scaleGroup.add("checkbox", undefined, "Create Smart Objects at 2x Resolution");
+    
     // Add buttons
     var btnGroup = dlg.add("group");
     btnGroup.add("button", undefined, "OK");
@@ -27,13 +31,14 @@ function promptForDocumentSize() {
     if (dlg.show() == 1) {
         return {
             width: parseInt(widthInput.text),
-            height: parseInt(heightInput.text)
+            height: parseInt(heightInput.text),
+            scale2x: scale2x.value
         };
     }
     return null;
 }
 
-function createPhotoshopDocument(docWidth, docHeight) {
+function createPhotoshopDocument(docWidth, docHeight, scale2x) {
     // Open file dialog to choose CSV
     var csvFile = File.openDialog("Select a CSV file", "*.csv");
     if (csvFile === null) {
@@ -105,7 +110,6 @@ function createPhotoshopDocument(docWidth, docHeight) {
     // Parse the CSV content
     var parsedRows = parseCSV(csvContent);
     var headers = parsedRows[0];
-    alert("Found headers: " + headers.join(", "));
 
     // Clean headers
     for (var h = 0; h < headers.length; h++) {
@@ -130,15 +134,12 @@ function createPhotoshopDocument(docWidth, docHeight) {
         switch(header) {
             case 'delivery asset name': 
                 columnIndices.name = i; 
-                alert("Found Delivery Asset Name at column " + i);
                 break;
             case 'width': 
                 columnIndices.width = i;
-                alert("Found Width at column " + i);
                 break;
             case 'height': 
                 columnIndices.height = i;
-                alert("Found Height at column " + i);
                 break;
             case 'x': columnIndices.x = i; break;
             case 'y': columnIndices.y = i; break;
@@ -181,8 +182,6 @@ function createPhotoshopDocument(docWidth, docHeight) {
     if (missingColumns.length > 0) {
         alert("Missing required columns: " + missingColumns.join(", "));
         return;
-    } else {
-        alert("Found all required columns. Processing " + (parsedRows.length - 1) + " rows");  // Debug
     }
 
     // Then use the indices when processing rows
@@ -197,8 +196,6 @@ function createPhotoshopDocument(docWidth, docHeight) {
             String(values[columnIndices.folder]).toLowerCase().replace(/^\s+|\s+$/g, '') : 
             'default';
 
-        alert("Processing row " + i + ":\nName: " + layerName + "\nWidth: " + width + "\nHeight: " + height);
-
         // Validate dimensions
         if (width <= 0 || height <= 0) {
             alert("Invalid dimensions for layer: " + layerName);
@@ -206,63 +203,136 @@ function createPhotoshopDocument(docWidth, docHeight) {
         }
 
         try {
-            // Create a new layer in the main document
-            var shapeLayer = doc.artLayers.add();
-            shapeLayer.name = layerName + "_shape";
+            if (scale2x) {
+                // Create 2x version directly in temp document
+                var mainDoc = app.activeDocument;
+                var tempDoc = app.documents.add(width * 2, height * 2, 72, layerName + "_temp", NewDocumentMode.RGB, DocumentFill.TRANSPARENT);
+                
+                // Create shape and text in temp doc at 2x size
+                var tempShape = tempDoc.artLayers.add();
+                tempShape.name = layerName + "_shape";
+                
+                // Create and fill shape at 2x size
+                var bounds2x = [
+                    [0, 0],
+                    [width * 2, 0],
+                    [width * 2, height * 2],
+                    [0, height * 2]
+                ];
+                
+                tempDoc.selection.select(bounds2x);
+                var fillColor = new SolidColor();
+                fillColor.rgb.red = 200;
+                fillColor.rgb.green = 200;
+                fillColor.rgb.blue = 200;
+                tempShape.opacity = 75;
+                tempDoc.selection.fill(fillColor);
+                tempDoc.selection.deselect();
 
-            // Set the layer bounds
-            var bounds = [
-                [xPosition, yPosition],
-                [xPosition + width, yPosition],
-                [xPosition + width, yPosition + height],
-                [xPosition, yPosition + height]
-            ];
-            
-            // Create a selection and fill it with semi-transparent gray
-            doc.selection.select(bounds);
-            var fillColor = new SolidColor();
-            fillColor.rgb.red = 200;
-            fillColor.rgb.green = 200;
-            fillColor.rgb.blue = 200;
-            shapeLayer.opacity = 75;
-            doc.selection.fill(fillColor);
-            doc.selection.deselect();
+                // Create text layer at 2x size
+                var tempText = tempDoc.artLayers.add();
+                tempText.kind = LayerKind.TEXT;
+                tempText.name = layerName + "_label";
+                
+                var tempTextItem = tempText.textItem;
+                tempTextItem.kind = TextType.POINTTEXT;
+                tempTextItem.font = "ArialMT";
+                tempTextItem.contents = layerName;
+                tempTextItem.size = Math.min(width, height) * 0.3;
+                tempTextItem.justification = Justification.CENTER;
+                tempTextItem.color.rgb.red = 50;
+                tempTextItem.color.rgb.green = 50;
+                tempTextItem.color.rgb.blue = 50;
+                tempTextItem.position = [width, height]; // Center of the 2x document
 
-            // Add text layer
-            var textLayer = doc.artLayers.add();
-            textLayer.kind = LayerKind.TEXT;
-            textLayer.name = layerName + "_label";
-            
-            // Set text properties
-            var textItem = textLayer.textItem;
-            textItem.kind = TextType.POINTTEXT;
-            textItem.font = "ArialMT";
-            textItem.contents = layerName;
-            textItem.size = Math.min(width, height) * 0.15;
-            textItem.justification = Justification.CENTER;
-            textItem.color.rgb.red = 50;
-            textItem.color.rgb.green = 50;
-            textItem.color.rgb.blue = 50;
-            
-            // Center the text in the object
-            var centerX = xPosition + (width / 2);
-            var centerY = yPosition + (height / 2);
-            textItem.position = [centerX, centerY];
+                // Convert to smart object
+                tempDoc.activeLayer = tempText;
+                tempShape.selected = true;
+                tempText.selected = true;
+                executeAction(stringIDToTypeID("newPlacedLayer"), undefined, DialogModes.NO);
+                
+                // Save and close temp doc
+                var tempFile = new File(Folder.temp + "/" + layerName + "_temp.psd");
+                tempDoc.saveAs(tempFile);
+                tempDoc.close(SaveOptions.DONOTSAVECHANGES);
 
-            // Create a temporary layer group
-            var tempGroup = doc.layerSets.add();
-            
-            // Move shape layer first, then text layer so text stays on top
-            shapeLayer.move(tempGroup, ElementPlacement.INSIDE);
-            textLayer.move(tempGroup, ElementPlacement.INSIDE);
-            
-            // Select the group
-            tempGroup.selected = true;
+                // Switch back to main document and place the temp file
+                app.activeDocument = mainDoc;
+                var idPlc = charIDToTypeID("Plc ");
+                var desc = new ActionDescriptor();
+                desc.putPath(charIDToTypeID("null"), tempFile);
+                executeAction(idPlc, desc, DialogModes.NO);
+                
+                // Position the placed smart object at the original coordinates
+                // First, resize to correct dimensions
+                doc.activeLayer.resize(50, 50, AnchorPosition.MIDDLECENTER);
+                
+                // Then move to correct position
+                var bounds = doc.activeLayer.bounds;
+                var currentX = bounds[0].value;
+                var currentY = bounds[1].value;
+                doc.activeLayer.translate(xPosition - currentX, yPosition - currentY);
+                doc.activeLayer.name = layerName;
 
-            // Convert group to smart object
-            executeAction(stringIDToTypeID("newPlacedLayer"), undefined, DialogModes.NO);
-            doc.activeLayer.name = layerName;  // Rename the smart object
-            
+                // Clean up temp file
+                tempFile.remove();
+            } else {
+                // Create 1x version directly in main document
+                var shapeLayer = doc.artLayers.add();
+                shapeLayer.name = layerName + "_shape";
+
+                // Set the layer bounds
+                var bounds = [
+                    [xPosition, yPosition],
+                    [xPosition + width, yPosition],
+                    [xPosition + width, yPosition + height],
+                    [xPosition, yPosition + height]
+                ];
+                
+                doc.selection.select(bounds);
+                var fillColor = new SolidColor();
+                fillColor.rgb.red = 200;
+                fillColor.rgb.green = 200;
+                fillColor.rgb.blue = 200;
+                shapeLayer.opacity = 75;
+                doc.selection.fill(fillColor);
+                doc.selection.deselect();
+
+                // Add text layer
+                var textLayer = doc.artLayers.add();
+                textLayer.kind = LayerKind.TEXT;
+                textLayer.name = layerName + "_label";
+                
+                // Calculate center points for text
+                var centerX = xPosition + (width / 2);
+                var centerY = yPosition + (height / 2);
+                
+                var textItem = textLayer.textItem;
+                textItem.kind = TextType.POINTTEXT;
+                textItem.font = "ArialMT";
+                textItem.contents = layerName;
+                textItem.size = Math.min(width, height) * 0.15;
+                textItem.justification = Justification.CENTER;
+                textItem.color.rgb.red = 50;
+                textItem.color.rgb.green = 50;
+                textItem.color.rgb.blue = 50;
+                textItem.position = [centerX, centerY];
+
+                // Create a temporary layer group
+                var tempGroup = doc.layerSets.add();
+                
+                // Move shape layer first, then text layer so text stays on top
+                shapeLayer.move(tempGroup, ElementPlacement.INSIDE);
+                textLayer.move(tempGroup, ElementPlacement.INSIDE);
+                
+                // Select the group
+                tempGroup.selected = true;
+
+                // Convert group to smart object
+                executeAction(stringIDToTypeID("newPlacedLayer"), undefined, DialogModes.NO);
+                doc.activeLayer.name = layerName;
+            }
+
             // Move the smart object to appropriate folder
             if (folders[folderName]) {
                 doc.activeLayer.move(folders[folderName], ElementPlacement.INSIDE);
@@ -348,7 +418,7 @@ function createPhotoshopDocument(docWidth, docHeight) {
 // Replace the direct function call with a prompt
 var dimensions = promptForDocumentSize();
 if (dimensions) {
-    createPhotoshopDocument(dimensions.width, dimensions.height);
+    createPhotoshopDocument(dimensions.width, dimensions.height, dimensions.scale2x);
 } else {
     alert("Operation cancelled by user.");
 }
