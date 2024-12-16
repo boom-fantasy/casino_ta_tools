@@ -179,12 +179,13 @@ function createPhotoshopDocument(docWidth, docHeight) {
                 [xPosition, yPosition + height]
             ];
             
-            // Create a selection and fill it with light gray
+            // Create a selection and fill it with semi-transparent gray
             doc.selection.select(bounds);
             var fillColor = new SolidColor();
             fillColor.rgb.red = 200;
             fillColor.rgb.green = 200;
             fillColor.rgb.blue = 200;
+            shapeLayer.opacity = 75;
             doc.selection.fill(fillColor);
             doc.selection.deselect();
 
