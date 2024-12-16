@@ -105,6 +105,42 @@ function createPhotoshopDocument(docWidth, docHeight) {
 
     var smartObjects = []; // Array to store smart object layers
 
+    // Find column indices
+    var columnIndices = {
+        name: -1,
+        width: -1,
+        height: -1,
+        x: -1,
+        y: -1,
+        folder: -1
+    };
+
+    for (var i = 0; i < headers.length; i++) {
+        var header = headers[i].toLowerCase();
+        switch(header) {
+            case 'name': columnIndices.name = i; break;
+            case 'width': columnIndices.width = i; break;
+            case 'height': columnIndices.height = i; break;
+            case 'x': columnIndices.x = i; break;
+            case 'y': columnIndices.y = i; break;
+            case 'folder': columnIndices.folder = i; break;
+        }
+    }
+
+    // Validate required columns exist
+    var missingColumns = [];
+    for (var col in columnIndices) {
+        if (columnIndices[col] === -1) {
+            missingColumns.push(col);
+        }
+    }
+    
+    if (missingColumns.length > 0) {
+        alert("Missing required columns: " + missingColumns.join(", "));
+        return;
+    }
+
+    // Then use the indices when processing rows
     for (var i = 1; i < lines.length; i++) {
         // Skip empty lines
         if (!String(lines[i]).replace(/^\s+|\s+$/g, '')) continue;
@@ -117,12 +153,12 @@ function createPhotoshopDocument(docWidth, docHeight) {
         
         if (values.length !== headers.length) continue;
 
-        var layerName = values[0];
-        var width = parseInt(values[1], 10) || 0;  // Added fallback to 0
-        var height = parseInt(values[2], 10) || 0;
-        var xPosition = parseInt(values[3], 10) || 0;
-        var yPosition = parseInt(values[4], 10) || 0;
-        var folderName = String(values[5]).toLowerCase().replace(/^\s+|\s+$/g, '');
+        var layerName = values[columnIndices.name];
+        var width = parseInt(values[columnIndices.width], 10) || 0;
+        var height = parseInt(values[columnIndices.height], 10) || 0;
+        var xPosition = parseInt(values[columnIndices.x], 10) || 0;
+        var yPosition = parseInt(values[columnIndices.y], 10) || 0;
+        var folderName = String(values[columnIndices.folder]).toLowerCase().replace(/^\s+|\s+$/g, '');
 
         // Validate dimensions
         if (width <= 0 || height <= 0) {
