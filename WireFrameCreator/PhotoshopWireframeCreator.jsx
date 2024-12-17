@@ -147,25 +147,70 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
         }
     }
 
-    // Get unique folder names from CSV
-    var uniqueFolders = {};
+    // Get unique folder paths from CSV and create folder structure
+    var folders = {};
+    function getOrCreateFolder(path, parent) {
+        // If path is empty or undefined, return null
+        if (!path) {
+            return null;
+        }
+
+        // If folder already exists, return it
+        if (folders[path]) {
+            return folders[path];
+        }
+        
+        // Split path into parts
+        var pathStr = String(path || '');
+        var parts = pathStr.split('/');
+        var validParts = [];
+        
+        // Manually filter parts
+        for (var i = 0; i < parts.length; i++) {
+            var partStr = String(parts[i] || '').replace(/^\s+|\s+$/g, '');
+            if (partStr.length > 0) {
+                validParts.push(partStr);
+            }
+        }
+        
+        var currentPath = '';
+        var currentParent = parent || doc;
+        
+        // Create each level of the path if it doesn't exist
+        for (var i = 0; i < validParts.length; i++) {
+            var part = validParts[i].toLowerCase();
+            currentPath += (i > 0 ? '/' : '') + part;
+            
+            if (!folders[currentPath]) {
+                // Create new folder with capitalized name
+                var newFolder = currentParent.layerSets.add();
+                newFolder.name = part.charAt(0).toUpperCase() + part.slice(1);
+                folders[currentPath] = newFolder;
+                currentParent = newFolder;
+            } else {
+                currentParent = folders[currentPath];
+            }
+        }
+        
+        return folders[currentPath];
+    }
+
+    // Get unique folder paths from CSV
     for (var i = 1; i < parsedRows.length; i++) {
         var values = parsedRows[i];
         if (columnIndices.folder !== -1 && values[columnIndices.folder]) {
-            var folderName = String(values[columnIndices.folder]).toLowerCase().replace(/^\s+|\s+$/g, '');
-            if (folderName) {
-                uniqueFolders[folderName] = true;
+            var folderPath = String(values[columnIndices.folder])
+                .toLowerCase()
+                .replace(/^\s+|\s+$/g, '');
+            if (folderPath) {
+                getOrCreateFolder(folderPath);
             }
         } else {
-            uniqueFolders['default'] = true;
+            if (!folders['default']) {
+                folders['default'] = doc.layerSets.add();
+                folders['default'].name = 'Default';
+            }
         }
-    }
-
-    // Create folder structure
-    var folders = {};
-    for (var folder in uniqueFolders) {
-        folders[folder] = doc.layerSets.add();
-        folders[folder].name = folder.charAt(0).toUpperCase() + folder.slice(1);
     }
 
     var smartObjects = []; // Array to store smart object layers
@@ -380,8 +425,15 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
             }
 
             // Move the smart object to appropriate folder if one is specified
-            if (folderName && folders[folderName]) {
-                doc.activeLayer.move(folders[folderName], ElementPlacement.INSIDE);
+            if (folderName) {
+                try {
+                    var targetFolder = getOrCreateFolder(folderName);
+                    if (targetFolder) {
+                        doc.activeLayer.move(targetFolder, ElementPlacement.INSIDE);
+                    }
+                } catch(e) {
+                    alert("Error moving layer to folder '" + folderName + "': " + e);
+                }
             }
             
             // Store the smart object layer
