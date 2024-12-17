@@ -245,12 +245,18 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 tempTextItem.color.rgb.blue = 50;
                 tempTextItem.width = width * 2;
                 tempTextItem.height = height * 2;
-                tempTextItem.position = [0, height - (tempTextItem.height / 2)];
-
+                tempTextItem.position = [0, 0];
+                
                 // Auto-size text if it's too big
                 while (tempTextItem.height > height * 2 && tempTextItem.size > 12) {
                     tempTextItem.size = tempTextItem.size * 0.9;
                 }
+                
+                // Center text vertically after sizing
+                var textBounds = tempText.bounds;
+                var textHeight = textBounds[3].value - textBounds[1].value;
+                var verticalOffset = (height * 2 - textHeight) / 2;
+                tempTextItem.position = [0, verticalOffset];
 
                 // Convert to smart object
                 tempDoc.activeLayer = tempText;
@@ -344,12 +350,19 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 // Create text box the same size as the shape
                 textItem.width = width;
                 textItem.height = height;
-                textItem.position = [xPosition, yPosition + (height - textItem.height) / 2];
+                // Position text box and center vertically
+                textItem.position = [xPosition, yPosition];
                 
                 // Auto-size text if it's too big
                 while (textItem.height > height && textItem.size > 6) {
                     textItem.size = textItem.size * 0.9;
                 }
+                
+                // Center text vertically after sizing
+                var textBounds = textLayer.bounds;
+                var textHeight = textBounds[3].value - textBounds[1].value;
+                var verticalOffset = (height - textHeight) / 2;
+                textItem.position = [xPosition, yPosition + verticalOffset];
 
                 // Create a temporary layer group
                 var tempGroup = doc.layerSets.add();
