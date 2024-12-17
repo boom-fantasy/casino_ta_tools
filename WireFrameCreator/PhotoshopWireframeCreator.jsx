@@ -366,11 +366,9 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 doc.activeLayer.name = layerName;
             }
 
-            // Move the smart object to appropriate folder
-            if (folders[folderName]) {
+            // Move the smart object to appropriate folder if one is specified
+            if (folderName && folders[folderName]) {
                 doc.activeLayer.move(folders[folderName], ElementPlacement.INSIDE);
-            } else {
-                alert("Warning: Invalid folder name '" + folderName + "' for layer '" + layerName + "'");
             }
             
             // Store the smart object layer
@@ -386,7 +384,7 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
         try {
             doc.saveAs(saveFile);
             
-            // Create "Links" folder with subfolders
+            // Create "Links" folder
             var linksFolder = new Folder(saveFile.path + "/Links");
             if (!linksFolder.exists) {
                 if (!linksFolder.create()) {
@@ -394,23 +392,11 @@ function createPhotoshopDocument(docWidth, docHeight, scale2x) {
                 }
             }
             
-            // Create subfolders in Links
-            var linksFolders = {};
-            for (var folder in uniqueFolders) {
-                linksFolders[folder] = new Folder(linksFolder + "/" + folders[folder].name);
-                if (!linksFolders[folder].exists) {
-                    if (!linksFolders[folder].create()) {
-                        alert("Warning: Failed to create folder: " + folder);
-                    }
-                }
-            }
-            
             // Save each smart object as a separate file
             for (var i = 0; i < smartObjects.length; i++) {
                 try {
                     var smartObject = smartObjects[i];
-                    var folderName = smartObject.parent.name.toLowerCase();
-                    var smartObjectFile = new File(linksFolders[folderName] + "/" + smartObject.name + ".psd");
+                    var smartObjectFile = new File(linksFolder + "/" + smartObject.name + ".psd");
                     
                     // Set layer visibility
                     for (var j = 0; j < doc.artLayers.length; j++) {
